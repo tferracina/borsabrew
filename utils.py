@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 import re
 from typing import Dict, Any, List
+import yfinance as yf
 
 
 current_dir = Path.cwd()
@@ -74,3 +75,47 @@ def add_order(order_dict: Dict[str, Any]) -> None:
             json.dump(orders, f, ensure_ascii=False, indent=4)
     except IOError as e:
         raise IOError("error writing to BORSA file: %s", e)
+
+
+def get_stock_data(stock_symbols: List[str]) -> Dict[str, float]:
+    """
+    Get stock data from Yahoo Finance API
+    :param stock_symbols: List of stock symbols
+    :return: Dictionary containing stock data
+    """
+    current_prices = {}
+    for symbol in stock_symbols:
+        try:
+            ticker = yf.Ticker(symbol)
+            stock_info = ticker.history(period="1d")
+            current_price = stock_info["Close"].iloc[-1]
+            current_prices[symbol] = current_price
+        except Exception as e:
+            print(f"Error fetching data for {symbol}: {e}")
+            current_prices[symbol] = None
+    return current_prices
+
+
+def calculate_performance(bought_price: float, current_price: float) -> float:
+    """
+    Calculate the performance of a stock
+    :param bought_price: Price at which stock was bought
+    :param current_price: Current price of the stock
+    :return: Performance percentage
+    """
+    return ((current_price - bought_price) / bought_price) * 100
+
+
+def calculate_portfolio(stocks: List[Dict[str, Any]]) -> float:
+    """
+    Calculate the overall performance of the portfolio
+    :param stocks: List of stock dictionaries
+    :return: Overall performance percentage
+    """
+    total_performance = 0
+    for stock in stocks:
+        current_price = stock["current_price"]
+        bought_price = stock["price"]
+        quantity = stock["quantity"]
+        total_performance += calculate_performance(bought_price, current_price) * quantity
+    return total_performance
